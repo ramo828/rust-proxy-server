@@ -238,5 +238,5 @@ Dealsbe Platforması (Qeyd: Link fərzidir, real URL əlavə olunmalıdır)
 Lisenziya
 Bu layihə MIT Lisenziyası altında paylaşılır. Ətraflı məlumat üçün LICENSE faylına baxın.
 
-Əlaqə: Ramiz Mammadli ([e-poçt və ya GitHub profil linki])Dəstək: Problemlər və ya təkliflər üçün [GitHub Issues](/issues) səhifəsindən istifadə edin.
+Əlaqə: Ramiz Mammadli Dəstək: Problemlər və ya təkliflər üçün mailto:ramosoft94@gmail.com səhifəsindən istifadə edin.
 
