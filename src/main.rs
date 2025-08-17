@@ -11,11 +11,11 @@ use std::sync::Arc;
 use std::fs;
 use clap::{Arg, Command};
 
-// API URL'leri
+// API URL-ləri
 const NAR_API_URL: &str = "https://esim.nar.az/api/number-discovery/stock";
 const BAKCELL_API_URL: &str = "https://esim.bakcell.com/api/number-discovery/stock/msisdn/level/organization";
 
-// Varsayılan User-Agent listesi (genişletilmiş)
+// Defolt User-Agent siyahısı (genişləndirilmiş)
 fn default_user_agents() -> Vec<String> {
     vec![
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36".to_string(),
@@ -46,7 +46,7 @@ fn default_user_agents() -> Vec<String> {
     ]
 }
 
-// Nar için parametre modeli
+// Nar üçün parametrlər modeli
 #[derive(Deserialize)]
 struct NarParams {
     #[serde(default)]
@@ -66,7 +66,7 @@ fn default_nar_prefix() -> String { "070".to_string() }
 fn default_nar_size() -> i32 { 50 }
 fn default_nar_provider_id() -> i32 { 1 }
 
-// Bakcell için parametre modeli
+// Bakcell üçün parametrlər modeli
 #[derive(Deserialize)]
 struct BakcellParams {
     #[serde(default)]
@@ -92,7 +92,7 @@ fn default_bakcell_provider_id() -> i32 { 2 }
 fn default_bakcell_organization() -> i32 { 1 }
 fn default_bakcell_msisdn_type() -> String { "E_SIM".to_string() }
 
-// Nar header'ları
+// Nar başlıqları
 fn nar_headers(ua: &str) -> Vec<(&'static str, String)> {
     vec![
         ("Accept", "application/json, text/plain, */*".to_string()),
@@ -116,7 +116,7 @@ fn nar_headers(ua: &str) -> Vec<(&'static str, String)> {
     ]
 }
 
-// Bakcell header'ları
+// Bakcell başlıqları
 fn bakcell_headers(ua: &str) -> Vec<(&'static str, String)> {
     vec![
         ("Accept", "application/json, text/plain, */*".to_string()),
@@ -138,7 +138,7 @@ fn bakcell_headers(ua: &str) -> Vec<(&'static str, String)> {
     ]
 }
 
-// wreq istemcisi oluştur
+// wreq müştərisi yarat
 async fn create_client() -> wreq::Result<Client> {
     Client::builder()
         .emulation(Emulation::Chrome137)
@@ -147,7 +147,7 @@ async fn create_client() -> wreq::Result<Client> {
         .build()
 }
 
-// Cookie alma fonksiyonu
+// Cookie alma funksiyası
 async fn get_cookies(client: &Client, url: &str, headers: Vec<(&str, String)>) -> wreq::Result<String> {
     let mut req = client.get(url);
     for (key, value) in headers {
@@ -161,11 +161,11 @@ async fn get_cookies(client: &Client, url: &str, headers: Vec<(&str, String)>) -
         .map(|v| v.to_str().unwrap_or_default().to_string())
         .collect::<Vec<_>>()
         .join("; ");
-    println!("Alınan cookie'ler: {}", cookies);
+    println!("Alınmış cookie-lər: {}", cookies);
     Ok(cookies)
 }
 
-// Nar endpoint'i
+// Nar endpoint-i
 #[get("/nar/stock")]
 async fn nar_proxy(
     params: web::Query<NarParams>,
@@ -173,33 +173,33 @@ async fn nar_proxy(
 ) -> impl Responder {
     let (user_agents, max_delay) = &***app_data;
 
-    // Rastgele gecikme ekle (varsa)
+    // Təsadüfi gecikmə əlavə et (varsa)
     if *max_delay > 0 {
         let delay = rand::thread_rng().gen_range(0..=*max_delay);
         sleep(Duration::from_millis(delay)).await;
     }
 
-    // Query'den gelen time parametresiyle gecikme ekle
+    // Query-dən gələn time parametri ilə gecikmə əlavə et
     if params.time > 0 {
         sleep(Duration::from_millis(params.time)).await;
     }
 
     let client = match create_client().await {
         Ok(client) => client,
-        Err(e) => return HttpResponse::InternalServerError().body(format!("Client oluşturulamadı: {}", e)),
+        Err(e) => return HttpResponse::InternalServerError().body(format!("Müştəri yaradılmadı: {}", e)),
     };
 
-    // Rastgele User-Agent seç
+    // Təsadüfi User-Agent seç
     let ua = user_agents.choose(&mut rand::thread_rng())
         .map(|s| s.as_str())
         .unwrap_or("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36");
     let mut headers = nar_headers(ua);
 
-    // Cookie'leri al
+    // Cookie-ləri al
     let cookies = match get_cookies(&client, "https://esim.nar.az", headers.clone()).await {
         Ok(cookies) => cookies,
         Err(e) => {
-            println!("Cookie alınırken hata: {}", e);
+            println!("Cookie alınarkən xəta: {}", e);
             "".to_string()
         }
     };
@@ -207,7 +207,7 @@ async fn nar_proxy(
         headers.push(("Cookie", cookies));
     }
 
-    // Parametreleri hazırla
+    // Parametrləri hazırla
     let mut query_map: HashMap<String, String> = HashMap::new();
     query_map.insert("page".to_string(), params.page.to_string());
     query_map.insert("number".to_string(), params.number.clone());
@@ -215,7 +215,7 @@ async fn nar_proxy(
     query_map.insert("size".to_string(), params.size.to_string());
     query_map.insert("providerId".to_string(), params.provider_id.to_string());
 
-    // API isteği
+    // API sorğusu
     let mut req = client.get(NAR_API_URL);
     for (key, value) in headers {
         req = req.header(key, value);
@@ -226,10 +226,10 @@ async fn nar_proxy(
         Ok(resp) if resp.status().is_success() => {
             let mut response_json: serde_json::Value = match resp.json().await {
                 Ok(json) => json,
-                Err(e) => return HttpResponse::InternalServerError().body(format!("JSON parse hatası: {}", e)),
+                Err(e) => return HttpResponse::InternalServerError().body(format!("JSON parse xətası: {}", e)),
             };
 
-            // Prefix ile filtrele ve total/has_next hesapla
+            // Prefix ilə filtrlə və total/has_next hesabla
             let requested_prefix = params.prefix.clone();
             let (total, has_next) = if let Some(data) = response_json.get_mut("data").and_then(|d| d.as_array_mut()) {
                 data.retain(|item| item.get("prefix").and_then(|p| p.as_str()) == Some(&requested_prefix));
@@ -239,7 +239,7 @@ async fn nar_proxy(
                 (0, false)
             };
 
-            // Metadata'yı güncelle
+            // Metadata-nı yenilə
             if let Some(metadata) = response_json.get_mut("metadata").and_then(|m| m.get_mut("pagination")) {
                 if let Some(obj) = metadata.as_object_mut() {
                     obj.insert("total".to_string(), serde_json::Value::Number(total.into()));
@@ -253,16 +253,16 @@ async fn nar_proxy(
             let status = actix_web::http::StatusCode::from_u16(resp.status().as_u16())
                 .unwrap_or(actix_web::http::StatusCode::BAD_GATEWAY);
             let body = match resp.text().await {
-                Ok(text) => format!("Nar API hatası: {}", text),
-                Err(e) => format!("Nar API hatası (text okuma başarısız): {}", e),
+                Ok(text) => format!("Nar API xətası: {}", text),
+                Err(e) => format!("Nar API xətası (mətn oxuma uğursuz): {}", e),
             };
             HttpResponse::build(status).body(body)
         }
-        Err(e) => HttpResponse::InternalServerError().body(format!("Nar API erişim hatası: {}", e)),
+        Err(e) => HttpResponse::InternalServerError().body(format!("Nar API giriş xətası: {}", e)),
     }
 }
 
-// Bakcell endpoint'i
+// Bakcell endpoint-i
 #[get("/bakcell/stock")]
 async fn bakcell_proxy(
     params: web::Query<BakcellParams>,
@@ -270,33 +270,33 @@ async fn bakcell_proxy(
 ) -> impl Responder {
     let (user_agents, max_delay) = &***app_data;
 
-    // Rastgele gecikme ekle (varsa)
+    // Təsadüfi gecikmə əlavə et (varsa)
     if *max_delay > 0 {
         let delay = rand::thread_rng().gen_range(0..=*max_delay);
         sleep(Duration::from_millis(delay)).await;
     }
 
-    // Query'den gelen time parametresiyle gecikme ekle
+    // Query-dən gələn time parametri ilə gecikmə əlavə et
     if params.time > 0 {
         sleep(Duration::from_millis(params.time)).await;
     }
 
     let client = match create_client().await {
         Ok(client) => client,
-        Err(e) => return HttpResponse::InternalServerError().body(format!("Client oluşturulamadı: {}", e)),
+        Err(e) => return HttpResponse::InternalServerError().body(format!("Müştəri yaradılmadı: {}", e)),
     };
 
-    // Rastgele User-Agent seç
+    // Təsadüfi User-Agent seç
     let ua = user_agents.choose(&mut rand::thread_rng())
         .map(|s| s.as_str())
         .unwrap_or("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36");
     let mut headers = bakcell_headers(ua);
 
-    // Cookie'leri al
+    // Cookie-ləri al
     let cookies = match get_cookies(&client, "https://esim.bakcell.com", headers.clone()).await {
         Ok(cookies) => cookies,
         Err(e) => {
-            println!("Cookie alınırken hata: {}", e);
+            println!("Cookie alınarkən xəta: {}", e);
             "".to_string()
         }
     };
@@ -304,7 +304,7 @@ async fn bakcell_proxy(
         headers.push(("Cookie", cookies));
     }
 
-    // Parametreleri hazırla
+    // Parametrləri hazırla
     let mut query_map: HashMap<String, String> = HashMap::new();
     query_map.insert("page".to_string(), params.page.to_string());
     query_map.insert("number".to_string(), params.number.clone());
@@ -314,7 +314,7 @@ async fn bakcell_proxy(
     query_map.insert("organization".to_string(), params.organization.to_string());
     query_map.insert("msisdnType".to_string(), params.msisdn_type.clone());
 
-    // API isteği
+    // API sorğusu
     let mut req = client.get(BAKCELL_API_URL);
     for (key, value) in headers {
         req = req.header(key, value);
@@ -325,10 +325,10 @@ async fn bakcell_proxy(
         Ok(resp) if resp.status().is_success() => {
             let mut response_json: serde_json::Value = match resp.json().await {
                 Ok(json) => json,
-                Err(e) => return HttpResponse::InternalServerError().body(format!("JSON parse hatası: {}", e)),
+                Err(e) => return HttpResponse::InternalServerError().body(format!("JSON parse xətası: {}", e)),
             };
 
-            // Prefix ile filtrele ve total/has_next hesapla
+            // Prefix ilə filtrlə və total/has_next hesabla
             let requested_prefix = params.prefix.clone();
             let (total, has_next) = if let Some(data) = response_json.get_mut("data").and_then(|d| d.as_array_mut()) {
                 data.retain(|item| item.get("prefix").and_then(|p| p.as_str()) == Some(&requested_prefix));
@@ -338,7 +338,7 @@ async fn bakcell_proxy(
                 (0, false)
             };
 
-            // Metadata'yı güncelle
+            // Metadata-nı yenilə
             if let Some(metadata) = response_json.get_mut("metadata").and_then(|m| m.get_mut("pagination")) {
                 if let Some(obj) = metadata.as_object_mut() {
                     obj.insert("total".to_string(), serde_json::Value::Number(total.into()));
@@ -352,18 +352,18 @@ async fn bakcell_proxy(
             let status = actix_web::http::StatusCode::from_u16(resp.status().as_u16())
                 .unwrap_or(actix_web::http::StatusCode::BAD_GATEWAY);
             let body = match resp.text().await {
-                Ok(text) => format!("Bakcell API hatası: {}", text),
-                Err(e) => format!("Bakcell API hatası (text okuma başarısız): {}", e),
+                Ok(text) => format!("Bakcell API xətası: {}", text),
+                Err(e) => format!("Bakcell API xətası (mətn oxuma uğursuz): {}", e),
             };
             HttpResponse::build(status).body(body)
         }
-        Err(e) => HttpResponse::InternalServerError().body(format!("Bakcell API erişim hatası: {}", e)),
+        Err(e) => HttpResponse::InternalServerError().body(format!("Bakcell API giriş xətası: {}", e)),
     }
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Komut satırı argümanlarını parse et
+    // Komanda sətri arqumentlərini parse et
     let matches = Command::new("API Proxy")
         .version("1.0")
         .arg(
@@ -371,7 +371,7 @@ async fn main() -> std::io::Result<()> {
                 .long("user-agent-file")
                 .short('u')
                 .value_name("FILE")
-                .help("User-Agent dosyasının yolu (#\\n ile ayrılmış)")
+                .help("User-Agent faylının yolu (#\\n ilə ayrılmış)")
                 .default_value("")
                 .required(false)
         )
@@ -380,7 +380,7 @@ async fn main() -> std::io::Result<()> {
                 .long("port")
                 .short('p')
                 .value_name("PORT")
-                .help("Sunucunun çalışacağı port")
+                .help("Serverin işləyəcəyi port")
                 .default_value("8000")
                 .value_parser(clap::value_parser!(u16))
                 .required(false)
@@ -390,14 +390,14 @@ async fn main() -> std::io::Result<()> {
                 .long("time")
                 .short('t')
                 .value_name("MILLISECONDS")
-                .help("Her istek için maksimum rastgele gecikme (ms)")
+                .help("Hər sorğu üçün maksimum təsadüfi gecikmə (ms)")
                 .default_value("0")
                 .value_parser(clap::value_parser!(u64))
                 .required(false)
         )
         .get_matches();
 
-    // User-Agent dosyasını oku
+    // User-Agent faylını oxu
     let user_agent_file = matches.get_one::<String>("user_agent_file").unwrap();
     let user_agents = if !user_agent_file.is_empty() {
         match fs::read_to_string(user_agent_file) {
@@ -407,7 +407,7 @@ async fn main() -> std::io::Result<()> {
                 .filter(|s| !s.is_empty())
                 .collect::<Vec<String>>(),
             Err(e) => {
-                println!("User-agent dosyası okunamadı: {}. Varsayılanlar kullanılıyor.", e);
+                println!("User-agent faylı oxuna bilmədi: {}. Defoltlar istifadə olunur.", e);
                 default_user_agents()
             }
         }
@@ -415,15 +415,16 @@ async fn main() -> std::io::Result<()> {
         default_user_agents()
     };
 
-    // Maksimum rastgele gecikme süresini al
+    // Maksimum təsadüfi gecikmə müddətini al
     let max_delay = *matches.get_one::<u64>("time").unwrap();
 
-    // User agents ve max_delay'i paylaşılabilir veri yapısında birleştir
+    // User agents və max_delay-i paylaşılabilən məlumat strukturunda birləşdir
     let app_data = Arc::new((user_agents, max_delay));
 
     // Portu al
     let port = *matches.get_one::<u16>("port").unwrap();
-    println!("Sunucu port {} üzerinde çalışıyor, maksimum rastgele gecikme: {}ms", port, max_delay);
+    println!("Server port {} üzərində işləyir, maksimum təsadüfi gecikmə: {}ms", port, max_delay);
+
 
     HttpServer::new(move || {
         App::new()
