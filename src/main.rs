@@ -10,9 +10,9 @@ use tokio::time::sleep;
 use std::sync::Arc;
 use std::fs;
 use clap::{Arg, Command};
-
 // API URL-ləri
-const NAR_API_URL: &str = "https://esim.nar.az/api/number-discovery/stock";
+//const NAR_API_URL: &str = "https://esim.nar.az/api/number-discovery/stock";
+const NAR_API_URL: &str = "https://esim.nar.az/api/number-discovery/stock/msisdn/level/organization";
 const BAKCELL_API_URL: &str = "https://esim.bakcell.com/api/number-discovery/stock/msisdn/level/organization";
 
 // Defolt User-Agent siyahısı (genişləndirilmiş)
@@ -93,26 +93,50 @@ fn default_bakcell_organization() -> i32 { 1 }
 fn default_bakcell_msisdn_type() -> String { "E_SIM".to_string() }
 
 // Nar başlıqları
+//fn nar_headers(ua: &str) -> Vec<(&'static str, String)> {
+//    vec![
+//        ("Accept", "application/json, text/plain, */*".to_string()),
+//        ("Accept-Encoding", "gzip, deflate, br, zstd".to_string()),
+//        ("Accept-Language", "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7".to_string()),
+//        ("Priority", "u=1, i".to_string()),
+//        ("Provider-Id", "1".to_string()),
+//        ("Referer", "https://esim.nar.az".to_string()),
+//        ("Referrer", "1".to_string()),
+//        ("Sec-CH-UA", r#""Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138""#.to_string()),
+//        ("Sec-CH-UA-Mobile", "?0".to_string()),
+//        ("Sec-CH-UA-Platform", r#""Linux""#.to_string()),
+//        ("Sec-Fetch-Dest", "empty".to_string()),
+//        ("Sec-Fetch-Mode", "cors".to_string()),
+//        ("Sec-Fetch-Site", "same-origin".to_string()),
+//        ("User-Agent", ua.to_string()),
+//        ("X-API-Key", "f14b1e9f-ddaa-4537-ad81-6bc910927caa".to_string()),
+//        ("X-API-Version", "1.0.0".to_string()),
+//        ("X-App-Id", "b6920d9083c8e76685bcc8db34b8c9bb".to_string()),
+//        ("X-Session-Id", "607538e2-a52c-42b3-b926-2d9293298b95".to_string()),
+//    ]
+//}
+
 fn nar_headers(ua: &str) -> Vec<(&'static str, String)> {
     vec![
         ("Accept", "application/json, text/plain, */*".to_string()),
         ("Accept-Encoding", "gzip, deflate, br, zstd".to_string()),
-        ("Accept-Language", "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7".to_string()),
+        ("Accept-Language", "az,en-GB;q=0.9,en-US;q=0.8,en;q=0.7,tr;q=0.6".to_string()),
         ("Priority", "u=1, i".to_string()),
         ("Provider-Id", "1".to_string()),
-        ("Referer", "https://esim.nar.az".to_string()),
-        ("Referrer", "1".to_string()),
-        ("Sec-CH-UA", r#""Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138""#.to_string()),
+        ("Referer", "https://esim.nar.az/az".to_string()),
+        ("Referrer", "2".to_string()),
+        ("Sec-CH-UA", r#""Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99""#.to_string()),
         ("Sec-CH-UA-Mobile", "?0".to_string()),
         ("Sec-CH-UA-Platform", r#""Linux""#.to_string()),
         ("Sec-Fetch-Dest", "empty".to_string()),
         ("Sec-Fetch-Mode", "cors".to_string()),
         ("Sec-Fetch-Site", "same-origin".to_string()),
+        ("Track-Id", "123".to_string()),
         ("User-Agent", ua.to_string()),
         ("X-API-Key", "f14b1e9f-ddaa-4537-ad81-6bc910927caa".to_string()),
         ("X-API-Version", "1.0.0".to_string()),
         ("X-App-Id", "b6920d9083c8e76685bcc8db34b8c9bb".to_string()),
-        ("X-Session-Id", "607538e2-a52c-42b3-b926-2d9293298b95".to_string()),
+        ("X-Session-Id", uuid::Uuid::new_v4().to_string()),
     ]
 }
 
@@ -214,7 +238,8 @@ async fn nar_proxy(
     query_map.insert("prefix".to_string(), params.prefix.clone());
     query_map.insert("size".to_string(), params.size.to_string());
     query_map.insert("providerId".to_string(), params.provider_id.to_string());
-
+    query_map.insert("organization".to_string(), "1".to_string());
+    query_map.insert("msisdnType".to_string(), "E_SIM".to_string());
     // API sorğusu
     let mut req = client.get(NAR_API_URL);
     for (key, value) in headers {
@@ -224,11 +249,11 @@ async fn nar_proxy(
 
     match req.send().await {
         Ok(resp) if resp.status().is_success() => {
-            let mut response_json: serde_json::Value = match resp.json().await {
+            let response_json: serde_json::Value = match resp.json().await {
                 Ok(json) => json,
                 Err(e) => return HttpResponse::InternalServerError().body(format!("JSON parse xətası: {}", e)),
             };
-
+/*
             // Prefix ilə filtrlə və total/has_next hesabla
             let requested_prefix = params.prefix.clone();
             let (total, has_next) = if let Some(data) = response_json.get_mut("data").and_then(|d| d.as_array_mut()) {
@@ -246,7 +271,7 @@ async fn nar_proxy(
                     obj.insert("has_next".to_string(), serde_json::Value::Bool(has_next));
                 }
             }
-
+*/
             HttpResponse::Ok().json(response_json)
         }
         Ok(resp) => {
