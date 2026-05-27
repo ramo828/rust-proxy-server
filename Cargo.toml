@@ -9,6 +9,7 @@ edition = "2024"
 actix-web = "4"
 serde = { version = "1", features = ["derive"] }
 wreq = { version = "5", features = ["json"], default-features = false }
+#zstd-sys = { version = "2.0", features = ["static", "pkg-config"] }
 wreq-util = "2"
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"

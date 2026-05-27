@@ -1,0 +1,14 @@
+FROM ghcr.io/cross-rs/armv7-unknown-linux-gnueabihf:main
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    cmake \
+    make \
+    gcc-arm-linux-gnueabihf \
+    g++-arm-linux-gnueabihf \
+    && rm -rf /var/lib/apt/lists/*
+
+# CMake compiler test'ini atlatmak için
+RUN echo 'set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)' >> /usr/share/cmake-*/Modules/CMakeTestCCompiler.cmake || true
+RUN echo 'set(CMAKE_C_COMPILER_WORKS TRUE)' >> /usr/share/cmake-*/Modules/CMakeTestCCompiler.cmake || true
+RUN echo 'set(CMAKE_CXX_COMPILER_WORKS TRUE)' >> /usr/share/cmake-*/Modules/CMakeTestCCompiler.cmake || true
